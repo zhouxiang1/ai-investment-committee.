@@ -93,6 +93,7 @@ npm run build
 python3 -m py_compile backend/app/*.py backend/app/scoring/*.py
 python3 -m unittest tests/test_v2_universe.py
 python3 scripts/rebuild_v2_ratings.py
+python3 scripts/refresh_v2_aics_scorecards.py --limit 5
 npm audit --audit-level=moderate
 ```
 
@@ -104,6 +105,7 @@ PDF 输出在 `output/reports/`，SQLite 数据库在 `data/ai_committee.sqlite`
 
 ```bash
 python3 scripts/rebuild_v2_ratings.py
+python3 scripts/refresh_v2_aics_scorecards.py --force
 python3 -m unittest tests/test_v2_universe.py
 ```
 
@@ -114,7 +116,7 @@ GET  /api/v2/ratings
 POST /api/v2/ratings/rebuild
 ```
 
-前端侧边栏进入“2.0评级”查看完整 100 家、市场分布、动作分布和行动分 Top10。评级模式为 baseline + live evidence：若已有 AICS scorecard 或公司快照，会吸收实时证据；缺少实时证据时仍输出可测试、可追踪的 baseline 评级。
+首页直接展示完整 100 家、市场分布、动作分布、行动分 Top10 和质量/估值四象限图。评级模式为 AICS first：若已有第一版 AICS scorecard，会直接复用；若缺失，可用 `refresh_v2_aics_scorecards.py` 批量采集资料包并按第一版 AICS 评分引擎生成 scorecard；仍缺少实时证据时才保留可测试、可追踪的 baseline 评级。
 
 ## 线上部署
 

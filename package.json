@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "test:v2": "python3 -m unittest tests/test_v2_universe.py",
     "ratings:v2": "python3 scripts/rebuild_v2_ratings.py",
+    "ratings:v2:aics": "sh -c 'if [ -x .venv/bin/python ]; then .venv/bin/python scripts/refresh_v2_aics_scorecards.py; else python3 scripts/refresh_v2_aics_scorecards.py; fi'",
     "preview": "vite preview --host 127.0.0.1 --port 4173"
   },
   "dependencies": {

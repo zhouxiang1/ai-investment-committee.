@@ -1,0 +1,145 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import date
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from backend.app.database import get_conn, init_db, to_json  # noqa: E402
+from backend.app.scoring.persistence import persist_scorecard  # noqa: E402
+from backend.app.services import company_by_id, make_data_pack, new_id, persist_evidence_items  # noqa: E402
+from backend.app.v2_universe import V2_COMPANIES, get_v2_ratings, rebuild_v2_ratings, upsert_v2_company  # noqa: E402
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="按第一版 AICS 评分引擎刷新 2.0 重点100公司 scorecard")
+    parser.add_argument("--limit", type=int, default=0, help="最多刷新多少家公司；0 表示全部")
+    parser.add_argument("--rank", type=int, action="append", default=[], help="只刷新指定排名，可重复传入")
+    parser.add_argument("--force", action="store_true", help="已有 AICS scorecard 时也重新采集评分")
+    parser.add_argument("--sleep", type=float, default=0.2, help="每家公司之间暂停秒数，降低公开数据源压力")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+
+    init_db()
+    selected = [item for item in V2_COMPANIES if not args.rank or item["rank"] in set(args.rank)]
+    if args.limit > 0:
+        selected = selected[: args.limit]
+
+    results = []
+    with get_conn() as conn:
+        rebuild_v2_ratings(conn)
+        for item in selected:
+            company_id = upsert_v2_company(conn, item)
+            existing = latest_company_scorecard(conn, company_id)
+            if existing and not args.force:
+                results.append({"rank": item["rank"], "ticker": item["ticker"], "name": item["name"], "status": "reused"})
+                continue
+            report_id = ensure_aics_report(conn, company_id, item)
+            try:
+                company = company_by_id(conn, company_id)
+                data_pack = make_data_pack(company)
+                persist_evidence_items(conn, report_id, company, data_pack)
+                persist_scorecard(conn, report_id, company, data_pack.get("scorecard", {}))
+                conn.execute(
+                    """
+                    UPDATE committee_reports
+                    SET data_pack = ?, status = ?, current_round = ?, final_action = ?,
+                        overall_score = ?, confidence = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (
+                        to_json(data_pack),
+                        "AICS_SCORECARD_DONE",
+                        0,
+                        data_pack.get("scorecard", {}).get("final_action"),
+                        data_pack.get("scorecard", {}).get("investment_action_score"),
+                        data_pack.get("scorecard", {}).get("confidence"),
+                        report_id,
+                    ),
+                )
+                results.append({"rank": item["rank"], "ticker": item["ticker"], "name": item["name"], "status": "refreshed"})
+            except Exception as exc:
+                results.append({"rank": item["rank"], "ticker": item["ticker"], "name": item["name"], "status": "error", "error": str(exc)})
+            conn.commit()
+            if args.sleep:
+                time.sleep(args.sleep)
+        summary = rebuild_v2_ratings(conn)
+        ratings = get_v2_ratings(conn)
+
+    output = {
+        "processed": len(results),
+        "refreshed": sum(1 for item in results if item["status"] == "refreshed"),
+        "reused": sum(1 for item in results if item["status"] == "reused"),
+        "errors": [item for item in results if item["status"] == "error"],
+        "results": results,
+        "ratings_summary": summary,
+        "ratings_total": ratings["total"],
+    }
+    if args.json:
+        print(json.dumps(output, ensure_ascii=False, indent=2))
+    else:
+        print(f"processed={output['processed']} refreshed={output['refreshed']} reused={output['reused']} errors={len(output['errors'])}")
+        print(f"ratings: {summary['total']} {summary['by_market']}")
+        for item in output["errors"][:10]:
+            print(f"ERROR rank={item['rank']} {item['ticker']} {item['name']}: {item['error']}")
+    return 1 if output["errors"] else 0
+
+
+def latest_company_scorecard(conn, company_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT scorecard_json FROM scorecards WHERE company_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        (company_id,),
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        return json.loads(row["scorecard_json"])
+    except (TypeError, json.JSONDecodeError):
+        return None
+
+
+def ensure_aics_report(conn, company_id: str, item: dict) -> str:
+    row = conn.execute(
+        """
+        SELECT id FROM committee_reports
+        WHERE company_id = ? AND report_title LIKE 'AICS 2.0 批量评分%'
+        ORDER BY created_at DESC, rowid DESC
+        LIMIT 1
+        """,
+        (company_id,),
+    ).fetchone()
+    if row:
+        return row["id"]
+    report_id = new_id("report")
+    conn.execute(
+        """
+        INSERT INTO committee_reports (
+          id, company_id, report_date, report_title, selected_experts,
+          recommended_experts, chairman, data_pack, status, current_round
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            report_id,
+            company_id,
+            date.today().isoformat(),
+            f"AICS 2.0 批量评分：{item['name']}",
+            to_json([]),
+            to_json([]),
+            to_json({}),
+            to_json({}),
+            "AICS_SCORECARD_PENDING",
+            0,
+        ),
+    )
+    return report_id
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

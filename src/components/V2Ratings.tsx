@@ -5,6 +5,8 @@ import type { Market, V2Rating, V2RatingsResponse } from "../types";
 
 const QUALITY_THRESHOLD = 82;
 const VALUATION_THRESHOLD = 65;
+const AXIS_MIN = 55;
+const AXIS_MAX = 95;
 
 export function V2Ratings() {
   const [data, setData] = useState<V2RatingsResponse | null>(null);
@@ -55,7 +57,7 @@ export function V2Ratings() {
         <div>
           <p className="eyebrow">Version 2.0</p>
           <h1>重点100公司评级</h1>
-          <p>覆盖美股 40 家、A股 35 家、港股 25 家；评分会吸收已有 AICS 证据卡，并在缺少实时证据时使用可复现 baseline。</p>
+          <p>覆盖美股 40 家、A股 35 家、港股 25 家；当前 100 家已按第一版 AICS 评分引擎生成或复用 scorecard。</p>
         </div>
         <button className="primary-action" onClick={rebuild} disabled={loading}>
           <RefreshCw size={17} />
@@ -148,7 +150,8 @@ export function V2Ratings() {
 
 function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focused: V2Rating | null; onFocus: (rating: V2Rating) => void }) {
   const featured = focused || ratings[0];
-  const qualityLineY = 100 - QUALITY_THRESHOLD;
+  const qualityLineY = 100 - scaledPct(QUALITY_THRESHOLD);
+  const valueLineX = scaledPct(VALUATION_THRESHOLD);
   const priorityCount = ratings.filter((rating) => rating.quality_score >= QUALITY_THRESHOLD && rating.valuation_score >= VALUATION_THRESHOLD).length;
   return (
     <section className="quadrant-section">
@@ -168,28 +171,29 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
       <div className="quadrant-thresholds">
         <span>好公司门槛：CQS ≥ {QUALITY_THRESHOLD}</span>
         <span>好价格门槛：VAS ≥ {VALUATION_THRESHOLD}</span>
-        <span>优先研究池：{priorityCount} 家</span>
+        <span>显示区间：{AXIS_MIN}~{AXIS_MAX}</span>
+        <span>好公司好价格：{priorityCount} 家</span>
       </div>
 
       <div
         className="quadrant-map"
         aria-label="公司质量与估值吸引力四象限图"
-        style={{ "--quality-line-y": `${qualityLineY}%`, "--value-line-x": `${VALUATION_THRESHOLD}%` } as CSSProperties}
+        style={{ "--quality-line-y": `${qualityLineY}%`, "--value-line-x": `${valueLineX}%` } as CSSProperties}
       >
         <div className="quadrant-label top-left">
           <strong>好公司，等价格</strong>
           <span>CQS ≥ {QUALITY_THRESHOLD} / VAS &lt; {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label top-right">
-          <strong>优先研究池</strong>
+          <strong>好公司、好价格</strong>
           <span>CQS ≥ {QUALITY_THRESHOLD} / VAS ≥ {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label bottom-left">
-          <strong>谨慎回避</strong>
+          <strong>质量和价格都不占优</strong>
           <span>CQS &lt; {QUALITY_THRESHOLD} / VAS &lt; {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label bottom-right">
-          <strong>赔率观察</strong>
+          <strong>价格诱人</strong>
           <span>CQS &lt; {QUALITY_THRESHOLD} / VAS ≥ {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-axis x-axis">估值吸引力 VAS</div>
@@ -198,8 +202,8 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
         <div className="quadrant-midline horizontal" />
 
         {ratings.map((rating) => {
-          const x = clampPct(rating.valuation_score);
-          const y = 100 - clampPct(rating.quality_score);
+          const x = scaledPct(rating.valuation_score);
+          const y = 100 - scaledPct(rating.quality_score);
           const active = focused?.list_rank === rating.list_rank;
           return (
             <button
@@ -272,8 +276,10 @@ function codeLabel(rating: V2Rating) {
   return rating.ticker;
 }
 
-function clampPct(value: number) {
-  return Math.max(4, Math.min(96, Number.isFinite(value) ? value : 50));
+function scaledPct(value: number) {
+  if (!Number.isFinite(value)) return 50;
+  const pct = ((value - AXIS_MIN) / (AXIS_MAX - AXIS_MIN)) * 100;
+  return Math.max(4, Math.min(96, pct));
 }
 
 function companyInitial(name: string) {
