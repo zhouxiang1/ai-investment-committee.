@@ -3,6 +3,9 @@ import { RefreshCw, Search, ShieldCheck, SlidersHorizontal } from "lucide-react"
 import { api } from "../api";
 import type { Market, V2Rating, V2RatingsResponse } from "../types";
 
+const QUALITY_THRESHOLD = 82;
+const VALUATION_THRESHOLD = 65;
+
 export function V2Ratings() {
   const [data, setData] = useState<V2RatingsResponse | null>(null);
   const [market, setMarket] = useState<Market>("AUTO");
@@ -145,6 +148,8 @@ export function V2Ratings() {
 
 function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focused: V2Rating | null; onFocus: (rating: V2Rating) => void }) {
   const featured = focused || ratings[0];
+  const qualityLineY = 100 - QUALITY_THRESHOLD;
+  const priorityCount = ratings.filter((rating) => rating.quality_score >= QUALITY_THRESHOLD && rating.valuation_score >= VALUATION_THRESHOLD).length;
   return (
     <section className="quadrant-section">
       <div className="quadrant-heading">
@@ -160,23 +165,32 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
           </div>
         )}
       </div>
+      <div className="quadrant-thresholds">
+        <span>好公司门槛：CQS ≥ {QUALITY_THRESHOLD}</span>
+        <span>好价格门槛：VAS ≥ {VALUATION_THRESHOLD}</span>
+        <span>优先研究池：{priorityCount} 家</span>
+      </div>
 
-      <div className="quadrant-map" aria-label="公司质量与估值吸引力四象限图">
+      <div
+        className="quadrant-map"
+        aria-label="公司质量与估值吸引力四象限图"
+        style={{ "--quality-line-y": `${qualityLineY}%`, "--value-line-x": `${VALUATION_THRESHOLD}%` } as CSSProperties}
+      >
         <div className="quadrant-label top-left">
           <strong>好公司，等价格</strong>
-          <span>质量高 / 估值吸引力低</span>
+          <span>CQS ≥ {QUALITY_THRESHOLD} / VAS &lt; {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label top-right">
           <strong>优先研究池</strong>
-          <span>质量高 / 估值有吸引力</span>
+          <span>CQS ≥ {QUALITY_THRESHOLD} / VAS ≥ {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label bottom-left">
           <strong>谨慎回避</strong>
-          <span>质量低 / 估值也不便宜</span>
+          <span>CQS &lt; {QUALITY_THRESHOLD} / VAS &lt; {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-label bottom-right">
           <strong>赔率观察</strong>
-          <span>质量一般 / 估值有赔率</span>
+          <span>CQS &lt; {QUALITY_THRESHOLD} / VAS ≥ {VALUATION_THRESHOLD}</span>
         </div>
         <div className="quadrant-axis x-axis">估值吸引力 VAS</div>
         <div className="quadrant-axis y-axis">公司质量 CQS</div>
@@ -196,7 +210,7 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
               style={{ "--x": `${x}%`, "--y": `${y}%` } as CSSProperties}
               title={`${rating.name}｜质量 ${Math.round(rating.quality_score)}｜估值 ${Math.round(rating.valuation_score)}｜${rating.final_action}`}
             >
-              <span>{rating.list_rank}</span>
+              <span>{companyInitial(rating.name)}</span>
             </button>
           );
         })}
@@ -260,4 +274,8 @@ function codeLabel(rating: V2Rating) {
 
 function clampPct(value: number) {
   return Math.max(4, Math.min(96, Number.isFinite(value) ? value : 50));
+}
+
+function companyInitial(name: string) {
+  return Array.from(name.trim())[0] || "";
 }

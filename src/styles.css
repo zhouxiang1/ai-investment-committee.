@@ -2253,6 +2253,22 @@ dd {
   font-size: 22px;
 }
 
+.quadrant-thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quadrant-thresholds span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .quadrant-map {
   position: relative;
   min-height: 620px;
@@ -2260,8 +2276,8 @@ dd {
   border: 1px solid #cfd8e5;
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(180, 83, 9, 0.08) 0 50%, rgba(18, 128, 92, 0.10) 50% 100%),
-    linear-gradient(180deg, rgba(20, 92, 84, 0.10) 0 50%, rgba(180, 83, 9, 0.06) 50% 100%),
+    linear-gradient(90deg, rgba(180, 83, 9, 0.08) 0 var(--value-line-x), rgba(18, 128, 92, 0.10) var(--value-line-x) 100%),
+    linear-gradient(180deg, rgba(20, 92, 84, 0.10) 0 var(--quality-line-y), rgba(180, 83, 9, 0.06) var(--quality-line-y) 100%),
     repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), rgba(101, 114, 135, 0.12) 10%),
     repeating-linear-gradient(0deg, transparent 0, transparent calc(10% - 1px), rgba(101, 114, 135, 0.12) 10%),
     #fbfcfe;
@@ -2276,12 +2292,12 @@ dd {
 .quadrant-midline.vertical {
   top: 0;
   bottom: 0;
-  left: 50%;
+  left: var(--value-line-x);
   width: 2px;
 }
 
 .quadrant-midline.horizontal {
-  top: 50%;
+  top: var(--quality-line-y);
   right: 0;
   left: 0;
   height: 2px;
@@ -2362,7 +2378,7 @@ dd {
   border-radius: 50%;
   padding: 0;
   color: #fff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 900;
   line-height: 1;
   transform: translate(-50%, -50%);
@@ -2375,7 +2391,7 @@ dd {
   width: 34px;
   height: 34px;
   border-width: 3px;
-  font-size: 11px;
+  font-size: 15px;
   box-shadow: 0 12px 28px rgba(23, 32, 46, 0.36);
 }
 
@@ -2709,7 +2725,7 @@ dd {
   .company-dot {
     width: 18px;
     height: 18px;
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .hero-copy h1 {
