@@ -84,6 +84,11 @@ class V2UniverseTest(unittest.TestCase):
         self.assertEqual(result["summary"]["by_market"], {"US": 40, "A": 35, "HK": 25})
         self.assertTrue(all(item["final_action"] for item in result["ratings"]))
         self.assertTrue(all(0 <= item["action_score"] <= 100 for item in result["ratings"]))
+        by_rank = {item["list_rank"]: item for item in result["ratings"]}
+        self.assertEqual(by_rank[76]["original_code"], "00700")
+        self.assertEqual(by_rank[77]["original_code"], "09988")
+        self.assertEqual(by_rank[79]["original_code"], "09961")
+        self.assertEqual(by_rank[100]["original_code"], "00656")
 
 
 if __name__ == "__main__":

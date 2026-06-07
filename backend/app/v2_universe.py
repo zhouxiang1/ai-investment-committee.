@@ -302,6 +302,7 @@ def build_v2_rating(conn, item: dict[str, Any], company_id: str) -> dict[str, An
         "company_id": company_id,
         "market": item["market"],
         "ticker": item["ticker"],
+        "original_code": original_code_for(item),
         "name": item["name"],
         "name_en": item["name_en"],
         "theme": item["theme"],
@@ -364,6 +365,7 @@ def v2_rating_row(row: Any) -> dict[str, Any]:
             "company_id": row["company_id"],
             "market": row["market"],
             "ticker": row["ticker"],
+            "original_code": rating.get("original_code") or original_code_for(dict(row)),
             "name": row["name"],
             "theme": row["theme"],
             "moat_score": row["moat_score"],
@@ -478,7 +480,7 @@ def company_id_for(item: dict[str, Any]) -> str:
 
 
 def aliases_for(item: dict[str, Any]) -> list[str]:
-    aliases = [item["ticker"], item["name"], item["name_en"]]
+    aliases = [item["ticker"], original_code_for(item), item["name"], item["name_en"]]
     if item["market"] == "A":
         suffix = ".SH" if item["exchange"].startswith("SSE") else ".SZ"
         aliases.append(f"{item['ticker']}{suffix}")
@@ -486,6 +488,13 @@ def aliases_for(item: dict[str, Any]) -> list[str]:
         code = item["ticker"].replace(".HK", "")
         aliases.extend([code, code.zfill(5), code.zfill(4)])
     return list(dict.fromkeys([alias for alias in aliases if alias]))
+
+
+def original_code_for(item: dict[str, Any]) -> str:
+    ticker = str(item.get("ticker") or "")
+    if item.get("market") == "HK" and ticker.endswith(".HK"):
+        return ticker.replace(".HK", "").zfill(5)
+    return ticker
 
 
 def market_label(market: str) -> str:

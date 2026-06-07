@@ -67,6 +67,7 @@ export interface V2Rating {
   company_id: string;
   market: "US" | "A" | "HK" | string;
   ticker: string;
+  original_code?: string;
   name: string;
   name_en?: string;
   theme: string;

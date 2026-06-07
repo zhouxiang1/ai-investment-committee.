@@ -146,7 +146,7 @@ function RatingRow({ rating }: { rating: V2Rating }) {
       <span>{rating.list_rank}</span>
       <span>
         <strong>{rating.name}</strong>
-        <small>{rating.ticker} · {rating.name_en || rating.exchange}</small>
+        <small>{codeLabel(rating)} · {rating.name_en || rating.exchange}</small>
       </span>
       <span>{marketName(rating.market)}</span>
       <span>{rating.theme}</span>
@@ -178,4 +178,11 @@ function marketName(market: string) {
   if (market === "A") return "A股";
   if (market === "HK") return "港股";
   return market;
+}
+
+function codeLabel(rating: V2Rating) {
+  if (rating.original_code && rating.original_code !== rating.ticker) {
+    return `${rating.original_code} / ${rating.ticker}`;
+  }
+  return rating.ticker;
 }
