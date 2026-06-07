@@ -25,6 +25,7 @@ COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend ./backend
+COPY scripts ./scripts
 COPY --from=frontend /app/dist ./dist
 
 RUN mkdir -p /data/reports /data/uploads

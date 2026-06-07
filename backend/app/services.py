@@ -1069,12 +1069,12 @@ def recommend_chairman(company: dict, experts: list[dict]) -> dict:
     }
 
 
-def make_data_pack(company: dict) -> dict:
+def make_data_pack(company: dict, source_mode: str = "full") -> dict:
     snap = company.get("snapshot", {})
     raw_quote = snap.get("raw_data", {}) or {}
     security_id = f"sec_{slug_key(company.get('market'))}_{slug_key(company.get('ticker'))}"
     run_id = f"run_{date.today().strftime('%Y%m%d')}_{slug_key(company.get('ticker'))}_{hashlib.sha256((company.get('id') or company.get('ticker') or '').encode('utf-8')).hexdigest()[:6]}"
-    external_sources = collect_company_sources(company, security_id, run_id)
+    external_sources = empty_external_sources("snapshot AICS：使用已有公司信息与实时行情快照生成 scorecard，财报/公告/新闻缺口计入 DQS。") if source_mode == "snapshot" else collect_company_sources(company, security_id, run_id)
     company = enrich_company_from_external_profile(company, external_sources)
     tags = company_tags(company)
     snap = merge_collected_financial_metrics(snap, external_sources)
@@ -2202,6 +2202,22 @@ def collect_company_sources(company: dict, security_id: str, run_id: str) -> dic
             "gaps": [f"真实采集适配器异常：{exc}"],
             "documents_dir": "",
         }
+
+
+def empty_external_sources(gap: str = "未执行外部资料采集") -> dict:
+    return {
+        "news": [],
+        "social": [],
+        "filings": [],
+        "financial_statements": [],
+        "research_reports": [],
+        "peer_data": [],
+        "technical_history": [],
+        "valuation_history": [],
+        "evidence": [],
+        "gaps": [gap],
+        "documents_dir": "",
+    }
 
 
 def dedupe_evidence(items: list[dict]) -> list[dict]:

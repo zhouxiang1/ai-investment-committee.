@@ -107,8 +107,11 @@ PDF 输出在 `output/reports/`，SQLite 数据库在 `data/ai_committee.sqlite`
 ```bash
 python3 scripts/rebuild_v2_ratings.py
 python3 scripts/refresh_v2_aics_scorecards.py --force
+python3 scripts/refresh_v2_aics_scorecards.py --source-mode snapshot
 python3 -m unittest tests/test_v2_universe.py
 ```
+
+`--source-mode snapshot` 会使用已有公司信息、实时行情快照和本地证据结构调用第一版 AICS 评分引擎生成 scorecard；未补齐的财报、公告、新闻和同业证据会进入 DQS 与 missing_metrics，不再回退到 baseline 评级。
 
 API：
 
