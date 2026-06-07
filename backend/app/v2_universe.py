@@ -292,8 +292,9 @@ def build_v2_rating(conn, item: dict[str, Any], company_id: str) -> dict[str, An
         "final_rating": final_rating,
         "final_action": final_action,
         "rating_version": V2_VERSION,
+        "scorecard_detail": scorecard_detail(scorecard),
         "rating_basis": {
-            "mode": "baseline_plus_live_evidence",
+            "mode": "aics_first_live_evidence",
             "snapshot_used": bool(snapshot),
             "aics_scorecard_used": bool(scorecard),
             "pe_ratio": pe,
@@ -355,6 +356,26 @@ def v2_rating_row(row: Any) -> dict[str, Any]:
         }
     )
     return rating
+
+
+def scorecard_detail(scorecard: dict[str, Any]) -> dict[str, Any]:
+    if not scorecard:
+        return {}
+    summary = scorecard.get("summary") if isinstance(scorecard.get("summary"), dict) else {}
+    return {
+        "scoring_version": scorecard.get("scoring_version"),
+        "summary_text": summary.get("text"),
+        "data_quality_grade": summary.get("data_quality_grade"),
+        "company_quality_grade": summary.get("company_quality_grade"),
+        "valuation_grade": summary.get("valuation_grade"),
+        "confidence": scorecard.get("confidence"),
+        "bucket_scores": scorecard.get("bucket_scores") or {},
+        "valuation_bucket_scores": scorecard.get("valuation_bucket_scores") or {},
+        "data_quality_bucket_scores": scorecard.get("data_quality_bucket_scores") or {},
+        "red_flags": (scorecard.get("red_flags") or [])[:6],
+        "missing_metrics": (scorecard.get("missing_metrics") or [])[:8],
+        "action_rules": (scorecard.get("action_rules") or [])[:6],
+    }
 
 
 def preset_quality(item: dict[str, Any]) -> float:

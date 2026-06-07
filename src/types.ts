@@ -82,6 +82,20 @@ export interface V2Rating {
   final_action: string;
   rating_version: string;
   rated_at?: string;
+  scorecard_detail?: {
+    scoring_version?: string;
+    summary_text?: string;
+    data_quality_grade?: string;
+    company_quality_grade?: string;
+    valuation_grade?: string;
+    confidence?: number;
+    bucket_scores?: Record<string, number>;
+    valuation_bucket_scores?: Record<string, number>;
+    data_quality_bucket_scores?: Record<string, number>;
+    red_flags?: Array<{ title?: string; severity?: string; reason?: string; [key: string]: unknown }>;
+    missing_metrics?: string[];
+    action_rules?: string[];
+  };
   rating_basis?: {
     mode?: string;
     snapshot_used?: boolean;
