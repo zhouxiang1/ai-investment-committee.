@@ -1,5 +1,5 @@
 import { CSSProperties, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { api } from "../api";
 import type { Market, V2Rating, V2RatingsResponse } from "../types";
 
@@ -33,38 +33,12 @@ export function V2Ratings() {
     return () => window.clearTimeout(timer);
   }, [market, query]);
 
-  async function rebuild() {
-    setLoading(true);
-    setMessage("正在重建 2.0 重点100评级...");
-    try {
-      const result = await api.rebuildV2Ratings(market, query);
-      setData(result);
-      setMessage(`已重建 ${result.expected_total} 家公司评级`);
-    } catch (err) {
-      setMessage((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const ratings = data?.ratings || [];
   const actionRows = useMemo(() => Object.entries(data?.summary.by_action || {}).sort((a, b) => b[1] - a[1]), [data]);
   const [focused, setFocused] = useState<V2Rating | null>(null);
 
   return (
     <main className="content-column">
-      <section className="section-heading">
-        <div>
-          <p className="eyebrow">Version 2.0</p>
-          <h1>重点100公司评级</h1>
-          <p>覆盖美股 40 家、A股 35 家、港股 25 家；当前 100 家已按第一版 AICS 评分引擎生成或复用 scorecard。</p>
-        </div>
-        <button className="primary-action" onClick={rebuild} disabled={loading}>
-          <RefreshCw size={17} />
-          重建评级
-        </button>
-      </section>
-
       <section className="v2-rating-toolbar">
         <label className="company-search">
           <Search size={16} />
@@ -152,12 +126,10 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
   const featured = focused || ratings[0];
   const qualityLineY = 100 - scaledPct(QUALITY_THRESHOLD);
   const valueLineX = scaledPct(VALUATION_THRESHOLD);
-  const priorityCount = ratings.filter((rating) => rating.quality_score >= QUALITY_THRESHOLD && rating.valuation_score >= VALUATION_THRESHOLD).length;
   return (
     <section className="quadrant-section">
       <div className="quadrant-heading">
         <div>
-          <p className="eyebrow">Quality × Valuation</p>
           <h2>公司质量与估值吸引力四象限</h2>
         </div>
         {featured && (
@@ -167,12 +139,6 @@ function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focus
             <small>质量 {Math.round(featured.quality_score)} · 估值 {Math.round(featured.valuation_score)} · {featured.final_action}</small>
           </div>
         )}
-      </div>
-      <div className="quadrant-thresholds">
-        <span>好公司门槛：CQS ≥ {QUALITY_THRESHOLD}</span>
-        <span>好价格门槛：VAS ≥ {VALUATION_THRESHOLD}</span>
-        <span>显示区间：{AXIS_MIN}~{AXIS_MAX}</span>
-        <span>好公司好价格：{priorityCount} 家</span>
       </div>
 
       <div
