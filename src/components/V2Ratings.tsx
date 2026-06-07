@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { api } from "../api";
 import type { Market, V2Rating, V2RatingsResponse } from "../types";
@@ -44,6 +44,7 @@ export function V2Ratings() {
 
   const ratings = data?.ratings || [];
   const actionRows = useMemo(() => Object.entries(data?.summary.by_action || {}).sort((a, b) => b[1] - a[1]), [data]);
+  const [focused, setFocused] = useState<V2Rating | null>(null);
 
   return (
     <main className="content-column">
@@ -73,6 +74,8 @@ export function V2Ratings() {
       </section>
 
       {message && <div className="inline-message">{message}</div>}
+
+      <QuadrantMap ratings={ratings} focused={focused} onFocus={setFocused} />
 
       <section className="v2-rating-summary">
         <Stat label="清单覆盖" value={`${data?.total || 0}/${data?.expected_total || 100}`} />
@@ -140,6 +143,74 @@ export function V2Ratings() {
   );
 }
 
+function QuadrantMap({ ratings, focused, onFocus }: { ratings: V2Rating[]; focused: V2Rating | null; onFocus: (rating: V2Rating) => void }) {
+  const featured = focused || ratings[0];
+  return (
+    <section className="quadrant-section">
+      <div className="quadrant-heading">
+        <div>
+          <p className="eyebrow">Quality × Valuation</p>
+          <h2>公司质量与估值吸引力四象限</h2>
+        </div>
+        {featured && (
+          <div className="quadrant-focus">
+            <span>{marketName(featured.market)} · {codeLabel(featured)}</span>
+            <strong>{featured.name}</strong>
+            <small>质量 {Math.round(featured.quality_score)} · 估值 {Math.round(featured.valuation_score)} · {featured.final_action}</small>
+          </div>
+        )}
+      </div>
+
+      <div className="quadrant-map" aria-label="公司质量与估值吸引力四象限图">
+        <div className="quadrant-label top-left">
+          <strong>好公司，等价格</strong>
+          <span>质量高 / 估值吸引力低</span>
+        </div>
+        <div className="quadrant-label top-right">
+          <strong>优先研究池</strong>
+          <span>质量高 / 估值有吸引力</span>
+        </div>
+        <div className="quadrant-label bottom-left">
+          <strong>谨慎回避</strong>
+          <span>质量低 / 估值也不便宜</span>
+        </div>
+        <div className="quadrant-label bottom-right">
+          <strong>赔率观察</strong>
+          <span>质量一般 / 估值有赔率</span>
+        </div>
+        <div className="quadrant-axis x-axis">估值吸引力 VAS</div>
+        <div className="quadrant-axis y-axis">公司质量 CQS</div>
+        <div className="quadrant-midline vertical" />
+        <div className="quadrant-midline horizontal" />
+
+        {ratings.map((rating) => {
+          const x = clampPct(rating.valuation_score);
+          const y = 100 - clampPct(rating.quality_score);
+          const active = focused?.list_rank === rating.list_rank;
+          return (
+            <button
+              className={`company-dot market-${rating.market.toLowerCase()} ${active ? "active" : ""}`}
+              key={`${rating.list_rank}-${rating.ticker}`}
+              onClick={() => onFocus(rating)}
+              onMouseEnter={() => onFocus(rating)}
+              style={{ "--x": `${x}%`, "--y": `${y}%` } as CSSProperties}
+              title={`${rating.name}｜质量 ${Math.round(rating.quality_score)}｜估值 ${Math.round(rating.valuation_score)}｜${rating.final_action}`}
+            >
+              <span>{rating.list_rank}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="quadrant-legend">
+        <span><i className="legend-dot market-us" />美股</span>
+        <span><i className="legend-dot market-a" />A股</span>
+        <span><i className="legend-dot market-hk" />港股</span>
+      </div>
+    </section>
+  );
+}
+
 function RatingRow({ rating }: { rating: V2Rating }) {
   return (
     <div className="v2-rating-row">
@@ -185,4 +256,8 @@ function codeLabel(rating: V2Rating) {
     return `${rating.original_code} / ${rating.ticker}`;
   }
   return rating.ticker;
+}
+
+function clampPct(value: number) {
+  return Math.max(4, Math.min(96, Number.isFinite(value) ? value : 50));
 }
