@@ -14,13 +14,18 @@ from backend.app.v2_universe import V2_COMPANIES, V2_VERSION, get_v2_ratings, re
 
 
 class V2UniverseTest(unittest.TestCase):
-    def test_target_list_has_exactly_100_ranked_companies(self) -> None:
-        self.assertEqual(len(V2_COMPANIES), 100)
-        self.assertEqual([item["rank"] for item in V2_COMPANIES], list(range(1, 101)))
+    def test_target_list_has_exactly_300_ranked_companies(self) -> None:
+        self.assertEqual(len(V2_COMPANIES), 300)
+        self.assertEqual([item["rank"] for item in V2_COMPANIES], list(range(1, 301)))
         by_market = Counter(item["market"] for item in V2_COMPANIES)
-        self.assertEqual(by_market, {"US": 40, "A": 35, "HK": 25})
+        self.assertEqual(by_market, {"US": 111, "A": 120, "HK": 69})
+        by_name = {item["name"]: item for item in V2_COMPANIES}
+        self.assertEqual(by_name["拼多多"]["market"], "US")
+        self.assertEqual(by_name["拼多多"]["ticker"], "PDD")
+        self.assertEqual(by_name["百度集团-SW"]["ticker"], "9888.HK")
+        self.assertEqual(by_name["知乎-W"]["ticker"], "2390.HK")
 
-    def test_rebuild_persists_100_ratings(self) -> None:
+    def test_rebuild_persists_300_ratings(self) -> None:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.executescript(
@@ -77,18 +82,20 @@ class V2UniverseTest(unittest.TestCase):
         )
         summary = rebuild_v2_ratings(conn)
         result = get_v2_ratings(conn)
-        self.assertEqual(summary["total"], 100)
-        self.assertEqual(result["total"], 100)
-        self.assertEqual(result["expected_total"], 100)
+        self.assertEqual(summary["total"], 300)
+        self.assertEqual(result["total"], 300)
+        self.assertEqual(result["expected_total"], 300)
         self.assertEqual(result["version"], V2_VERSION)
-        self.assertEqual(result["summary"]["by_market"], {"US": 40, "A": 35, "HK": 25})
+        self.assertEqual(result["summary"]["by_market"], {"US": 111, "A": 120, "HK": 69})
         self.assertTrue(all(item["final_action"] for item in result["ratings"]))
         self.assertTrue(all(0 <= item["action_score"] <= 100 for item in result["ratings"]))
         by_rank = {item["list_rank"]: item for item in result["ratings"]}
         self.assertEqual(by_rank[76]["original_code"], "00700")
         self.assertEqual(by_rank[77]["original_code"], "09988")
-        self.assertEqual(by_rank[79]["original_code"], "09961")
-        self.assertEqual(by_rank[100]["original_code"], "00656")
+        self.assertEqual(by_rank[79]["market"], "US")
+        self.assertEqual(by_rank[79]["ticker"], "PDD")
+        self.assertEqual(by_rank[81]["original_code"], "02390")
+        self.assertEqual(by_rank[256]["original_code"], "09888")
 
 
 if __name__ == "__main__":

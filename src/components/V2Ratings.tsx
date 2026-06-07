@@ -57,7 +57,7 @@ export function V2Ratings() {
       <QuadrantMap ratings={ratings} focused={focused} onFocus={setFocused} />
 
       <section className="v2-rating-summary">
-        <Stat label="清单覆盖" value={`${data?.total || 0}/${data?.expected_total || 100}`} />
+        <Stat label="清单覆盖" value={`${data?.total || 0}/${data?.expected_total || 300}`} />
         <Stat label="美股" value={data?.summary.by_market.US || 0} />
         <Stat label="A股" value={data?.summary.by_market.A || 0} />
         <Stat label="港股" value={data?.summary.by_market.HK || 0} />

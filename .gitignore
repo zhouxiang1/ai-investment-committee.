@@ -6,6 +6,8 @@ __pycache__/
 *.pyc
 .env
 data/
+!backend/app/data/
+!backend/app/data/v2_companies.json
 output/
 tmp/
 *.tsbuildinfo

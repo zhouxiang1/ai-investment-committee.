@@ -1,117 +1,54 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date
+import json
+from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .database import from_json, to_json
 
 
-V2_VERSION = "ai-committee-v2.0-100"
+V2_VERSION = "ai-committee-v2.1-300"
+V2_DATA_PATH = Path(__file__).resolve().parent / "data" / "v2_companies.json"
 
 
-V2_COMPANIES: list[dict[str, Any]] = [
-    {"rank": 1, "market": "US", "ticker": "AAPL", "name": "苹果", "name_en": "Apple", "theme": "消费/品牌垄断", "industry": "消费电子", "exchange": "NASDAQ"},
-    {"rank": 2, "market": "US", "ticker": "KO", "name": "可口可乐", "name_en": "Coca-Cola", "theme": "消费/品牌垄断", "industry": "饮料", "exchange": "NYSE"},
-    {"rank": 3, "market": "US", "ticker": "PEP", "name": "百事可乐", "name_en": "PepsiCo", "theme": "消费/品牌垄断", "industry": "饮料/食品", "exchange": "NASDAQ"},
-    {"rank": 4, "market": "US", "ticker": "PG", "name": "宝洁", "name_en": "Procter & Gamble", "theme": "消费/品牌垄断", "industry": "日化消费品", "exchange": "NYSE"},
-    {"rank": 5, "market": "US", "ticker": "JNJ", "name": "强生", "name_en": "Johnson & Johnson", "theme": "消费/品牌垄断", "industry": "医疗健康", "exchange": "NYSE"},
-    {"rank": 6, "market": "US", "ticker": "PM", "name": "菲利普莫里斯", "name_en": "Philip Morris International", "theme": "消费/品牌垄断", "industry": "烟草", "exchange": "NYSE"},
-    {"rank": 7, "market": "US", "ticker": "KHC", "name": "卡夫亨氏", "name_en": "Kraft Heinz", "theme": "消费/品牌垄断", "industry": "包装食品", "exchange": "NASDAQ"},
-    {"rank": 8, "market": "US", "ticker": "MCD", "name": "麦当劳", "name_en": "McDonald's", "theme": "消费/品牌垄断", "industry": "餐饮连锁", "exchange": "NYSE"},
-    {"rank": 9, "market": "US", "ticker": "SBUX", "name": "星巴克", "name_en": "Starbucks", "theme": "消费/品牌垄断", "industry": "咖啡连锁", "exchange": "NASDAQ"},
-    {"rank": 10, "market": "US", "ticker": "TMO", "name": "赛默飞", "name_en": "Thermo Fisher Scientific", "theme": "消费/品牌垄断", "industry": "科研服务", "exchange": "NYSE"},
-    {"rank": 11, "market": "US", "ticker": "V", "name": "Visa", "name_en": "Visa", "theme": "金融/支付", "industry": "支付网络", "exchange": "NYSE"},
-    {"rank": 12, "market": "US", "ticker": "MA", "name": "万事达", "name_en": "Mastercard", "theme": "金融/支付", "industry": "支付网络", "exchange": "NYSE"},
-    {"rank": 13, "market": "US", "ticker": "AXP", "name": "美国运通", "name_en": "American Express", "theme": "金融/支付", "industry": "信用卡/支付", "exchange": "NYSE"},
-    {"rank": 14, "market": "US", "ticker": "JPM", "name": "摩根大通", "name_en": "JPMorgan Chase", "theme": "金融/支付", "industry": "银行", "exchange": "NYSE"},
-    {"rank": 15, "market": "US", "ticker": "BAC", "name": "美国银行", "name_en": "Bank of America", "theme": "金融/支付", "industry": "银行", "exchange": "NYSE"},
-    {"rank": 16, "market": "US", "ticker": "WFC", "name": "富国银行", "name_en": "Wells Fargo", "theme": "金融/支付", "industry": "银行", "exchange": "NYSE"},
-    {"rank": 17, "market": "US", "ticker": "BRK.B", "name": "伯克希尔哈撒韦", "name_en": "Berkshire Hathaway", "theme": "金融/支付", "industry": "保险/多元控股", "exchange": "NYSE"},
-    {"rank": 18, "market": "US", "ticker": "MS", "name": "摩根士丹利", "name_en": "Morgan Stanley", "theme": "金融/支付", "industry": "投行/财富管理", "exchange": "NYSE"},
-    {"rank": 19, "market": "US", "ticker": "MSFT", "name": "微软", "name_en": "Microsoft", "theme": "科技/硬护城河", "industry": "软件/云计算", "exchange": "NASDAQ"},
-    {"rank": 20, "market": "US", "ticker": "GOOGL", "name": "谷歌", "name_en": "Alphabet", "theme": "科技/硬护城河", "industry": "互联网/云计算", "exchange": "NASDAQ"},
-    {"rank": 21, "market": "US", "ticker": "AMZN", "name": "亚马逊", "name_en": "Amazon", "theme": "科技/硬护城河", "industry": "电商/云计算", "exchange": "NASDAQ"},
-    {"rank": 22, "market": "US", "ticker": "NVDA", "name": "英伟达", "name_en": "NVIDIA", "theme": "科技/硬护城河", "industry": "AI算力/半导体", "exchange": "NASDAQ"},
-    {"rank": 23, "market": "US", "ticker": "ORCL", "name": "甲骨文", "name_en": "Oracle", "theme": "科技/硬护城河", "industry": "企业软件/云", "exchange": "NYSE"},
-    {"rank": 24, "market": "US", "ticker": "IBM", "name": "IBM", "name_en": "IBM", "theme": "科技/硬护城河", "industry": "企业 IT/AI", "exchange": "NYSE"},
-    {"rank": 25, "market": "US", "ticker": "INTC", "name": "英特尔", "name_en": "Intel", "theme": "科技/硬护城河", "industry": "半导体", "exchange": "NASDAQ"},
-    {"rank": 26, "market": "US", "ticker": "QCOM", "name": "高通", "name_en": "Qualcomm", "theme": "科技/硬护城河", "industry": "通信芯片", "exchange": "NASDAQ"},
-    {"rank": 27, "market": "US", "ticker": "ADBE", "name": "Adobe", "name_en": "Adobe", "theme": "科技/硬护城河", "industry": "创意软件", "exchange": "NASDAQ"},
-    {"rank": 28, "market": "US", "ticker": "CRM", "name": "Salesforce", "name_en": "Salesforce", "theme": "科技/硬护城河", "industry": "SaaS", "exchange": "NYSE"},
-    {"rank": 29, "market": "US", "ticker": "XOM", "name": "埃克森美孚", "name_en": "Exxon Mobil", "theme": "能源/资源/公用事业", "industry": "综合能源", "exchange": "NYSE"},
-    {"rank": 30, "market": "US", "ticker": "CVX", "name": "雪佛龙", "name_en": "Chevron", "theme": "能源/资源/公用事业", "industry": "综合能源", "exchange": "NYSE"},
-    {"rank": 31, "market": "US", "ticker": "OXY", "name": "西方石油", "name_en": "Occidental Petroleum", "theme": "能源/资源/公用事业", "industry": "油气", "exchange": "NYSE"},
-    {"rank": 32, "market": "US", "ticker": "COP", "name": "康菲石油", "name_en": "ConocoPhillips", "theme": "能源/资源/公用事业", "industry": "油气", "exchange": "NYSE"},
-    {"rank": 33, "market": "US", "ticker": "DUK", "name": "杜克能源", "name_en": "Duke Energy", "theme": "能源/资源/公用事业", "industry": "公用事业", "exchange": "NYSE"},
-    {"rank": 34, "market": "US", "ticker": "SO", "name": "南方电力", "name_en": "Southern Company", "theme": "能源/资源/公用事业", "industry": "公用事业", "exchange": "NYSE"},
-    {"rank": 35, "market": "US", "ticker": "RIO", "name": "力拓", "name_en": "Rio Tinto", "theme": "能源/资源/公用事业", "industry": "矿业资源", "exchange": "NYSE"},
-    {"rank": 36, "market": "US", "ticker": "PFE", "name": "辉瑞", "name_en": "Pfizer", "theme": "医药/生物", "industry": "制药", "exchange": "NYSE"},
-    {"rank": 37, "market": "US", "ticker": "ABT", "name": "雅培", "name_en": "Abbott Laboratories", "theme": "医药/生物", "industry": "医疗器械/诊断", "exchange": "NYSE"},
-    {"rank": 38, "market": "US", "ticker": "AMGN", "name": "安进", "name_en": "Amgen", "theme": "医药/生物", "industry": "生物制药", "exchange": "NASDAQ"},
-    {"rank": 39, "market": "US", "ticker": "GILD", "name": "吉利德", "name_en": "Gilead Sciences", "theme": "医药/生物", "industry": "生物制药", "exchange": "NASDAQ"},
-    {"rank": 40, "market": "US", "ticker": "REGN", "name": "再生元", "name_en": "Regeneron", "theme": "医药/生物", "industry": "生物制药", "exchange": "NASDAQ"},
-    {"rank": 41, "market": "A", "ticker": "600519", "name": "贵州茅台", "name_en": "Kweichow Moutai", "theme": "白酒/消费", "industry": "白酒", "exchange": "SSE"},
-    {"rank": 42, "market": "A", "ticker": "000858", "name": "五粮液", "name_en": "Wuliangye", "theme": "白酒/消费", "industry": "白酒", "exchange": "SZSE"},
-    {"rank": 43, "market": "A", "ticker": "002304", "name": "洋河股份", "name_en": "Yanghe Brewery", "theme": "白酒/消费", "industry": "白酒", "exchange": "SZSE"},
-    {"rank": 44, "market": "A", "ticker": "600809", "name": "山西汾酒", "name_en": "Shanxi Fen Wine", "theme": "白酒/消费", "industry": "白酒", "exchange": "SSE"},
-    {"rank": 45, "market": "A", "ticker": "603369", "name": "今世缘", "name_en": "King's Luck Brewery", "theme": "白酒/消费", "industry": "白酒", "exchange": "SSE"},
-    {"rank": 46, "market": "A", "ticker": "600276", "name": "恒瑞医药", "name_en": "Hengrui Pharmaceuticals", "theme": "白酒/消费", "industry": "创新药", "exchange": "SSE"},
-    {"rank": 47, "market": "A", "ticker": "600887", "name": "伊利股份", "name_en": "Yili", "theme": "白酒/消费", "industry": "乳制品", "exchange": "SSE"},
-    {"rank": 48, "market": "A", "ticker": "603288", "name": "海天味业", "name_en": "Haitian Flavouring", "theme": "白酒/消费", "industry": "调味品", "exchange": "SSE"},
-    {"rank": 49, "market": "A", "ticker": "600036", "name": "招商银行", "name_en": "China Merchants Bank", "theme": "金融", "industry": "银行", "exchange": "SSE"},
-    {"rank": 50, "market": "A", "ticker": "601318", "name": "中国平安", "name_en": "Ping An Insurance", "theme": "金融", "industry": "保险/金融", "exchange": "SSE"},
-    {"rank": 51, "market": "A", "ticker": "601166", "name": "兴业银行", "name_en": "Industrial Bank", "theme": "金融", "industry": "银行", "exchange": "SSE"},
-    {"rank": 52, "market": "A", "ticker": "600000", "name": "浦发银行", "name_en": "SPDB", "theme": "金融", "industry": "银行", "exchange": "SSE"},
-    {"rank": 53, "market": "A", "ticker": "601688", "name": "华泰证券", "name_en": "Huatai Securities", "theme": "金融", "industry": "证券", "exchange": "SSE"},
-    {"rank": 54, "market": "A", "ticker": "000776", "name": "广发证券", "name_en": "GF Securities", "theme": "金融", "industry": "证券", "exchange": "SZSE"},
-    {"rank": 55, "market": "A", "ticker": "600999", "name": "招商证券", "name_en": "China Merchants Securities", "theme": "金融", "industry": "证券", "exchange": "SSE"},
-    {"rank": 56, "market": "A", "ticker": "600900", "name": "长江电力", "name_en": "China Yangtze Power", "theme": "电力/能源/资源", "industry": "水电", "exchange": "SSE"},
-    {"rank": 57, "market": "A", "ticker": "601088", "name": "中国神华", "name_en": "China Shenhua", "theme": "电力/能源/资源", "industry": "煤炭/电力", "exchange": "SSE"},
-    {"rank": 58, "market": "A", "ticker": "600938", "name": "中国海油", "name_en": "CNOOC", "theme": "电力/能源/资源", "industry": "油气", "exchange": "SSE"},
-    {"rank": 59, "market": "A", "ticker": "601899", "name": "紫金矿业", "name_en": "Zijin Mining", "theme": "电力/能源/资源", "industry": "有色金属", "exchange": "SSE"},
-    {"rank": 60, "market": "A", "ticker": "600585", "name": "海螺水泥", "name_en": "Anhui Conch Cement", "theme": "电力/能源/资源", "industry": "水泥", "exchange": "SSE"},
-    {"rank": 61, "market": "A", "ticker": "600019", "name": "宝钢股份", "name_en": "Baoshan Iron & Steel", "theme": "电力/能源/资源", "industry": "钢铁", "exchange": "SSE"},
-    {"rank": 62, "market": "A", "ticker": "300750", "name": "宁德时代", "name_en": "CATL", "theme": "高端制造/科技", "industry": "动力电池", "exchange": "SZSE"},
-    {"rank": 63, "market": "A", "ticker": "002594", "name": "比亚迪", "name_en": "BYD", "theme": "高端制造/科技", "industry": "新能源汽车", "exchange": "SZSE"},
-    {"rank": 64, "market": "A", "ticker": "600660", "name": "福耀玻璃", "name_en": "Fuyao Glass", "theme": "高端制造/科技", "industry": "汽车玻璃", "exchange": "SSE"},
-    {"rank": 65, "market": "A", "ticker": "300124", "name": "汇川技术", "name_en": "Inovance", "theme": "高端制造/科技", "industry": "工业自动化", "exchange": "SZSE"},
-    {"rank": 66, "market": "A", "ticker": "603501", "name": "韦尔股份", "name_en": "Will Semiconductor", "theme": "高端制造/科技", "industry": "半导体", "exchange": "SSE"},
-    {"rank": 67, "market": "A", "ticker": "002415", "name": "海康威视", "name_en": "Hikvision", "theme": "高端制造/科技", "industry": "安防/AIoT", "exchange": "SZSE"},
-    {"rank": 68, "market": "A", "ticker": "002230", "name": "科大讯飞", "name_en": "iFlytek", "theme": "高端制造/科技", "industry": "AI软件", "exchange": "SZSE"},
-    {"rank": 69, "market": "A", "ticker": "688012", "name": "中微公司", "name_en": "AMEC", "theme": "高端制造/科技", "industry": "半导体设备", "exchange": "SSE STAR"},
-    {"rank": 70, "market": "A", "ticker": "300015", "name": "爱尔眼科", "name_en": "Aier Eye Hospital", "theme": "医药/医疗服务", "industry": "医疗服务", "exchange": "SZSE"},
-    {"rank": 71, "market": "A", "ticker": "600436", "name": "片仔癀", "name_en": "Pien Tze Huang", "theme": "医药/医疗服务", "industry": "中药", "exchange": "SSE"},
-    {"rank": 72, "market": "A", "ticker": "600196", "name": "复星医药", "name_en": "Fosun Pharma", "theme": "医药/医疗服务", "industry": "医药", "exchange": "SSE"},
-    {"rank": 73, "market": "A", "ticker": "002223", "name": "鱼跃医疗", "name_en": "Yuwell", "theme": "医药/医疗服务", "industry": "医疗器械", "exchange": "SZSE"},
-    {"rank": 74, "market": "A", "ticker": "002027", "name": "分众传媒", "name_en": "Focus Media", "theme": "互联网/平台", "industry": "广告传媒", "exchange": "SZSE"},
-    {"rank": 75, "market": "A", "ticker": "300413", "name": "芒果超媒", "name_en": "Mango Excellent Media", "theme": "互联网/平台", "industry": "内容平台", "exchange": "SZSE"},
-    {"rank": 76, "market": "HK", "ticker": "0700.HK", "name": "腾讯控股", "name_en": "Tencent", "theme": "互联网平台", "industry": "互联网平台", "exchange": "HKEX"},
-    {"rank": 77, "market": "HK", "ticker": "9988.HK", "name": "阿里巴巴-W", "name_en": "Alibaba", "theme": "互联网平台", "industry": "电商/云计算", "exchange": "HKEX"},
-    {"rank": 78, "market": "HK", "ticker": "3690.HK", "name": "美团-W", "name_en": "Meituan", "theme": "互联网平台", "industry": "本地生活", "exchange": "HKEX"},
-    {"rank": 79, "market": "HK", "ticker": "9961.HK", "name": "拼多多", "name_en": "PDD Holdings", "theme": "互联网平台", "industry": "电商平台", "exchange": "HKEX"},
-    {"rank": 80, "market": "HK", "ticker": "1810.HK", "name": "小米集团", "name_en": "Xiaomi", "theme": "互联网平台", "industry": "消费电子/汽车", "exchange": "HKEX"},
-    {"rank": 81, "market": "HK", "ticker": "9888.HK", "name": "知乎-W", "name_en": "Zhihu", "theme": "互联网平台", "industry": "内容社区", "exchange": "HKEX"},
-    {"rank": 82, "market": "HK", "ticker": "2318.HK", "name": "中国平安", "name_en": "Ping An Insurance", "theme": "金融/交易所", "industry": "保险/金融", "exchange": "HKEX"},
-    {"rank": 83, "market": "HK", "ticker": "3968.HK", "name": "招商银行", "name_en": "China Merchants Bank", "theme": "金融/交易所", "industry": "银行", "exchange": "HKEX"},
-    {"rank": 84, "market": "HK", "ticker": "0388.HK", "name": "香港交易所", "name_en": "Hong Kong Exchanges and Clearing", "theme": "金融/交易所", "industry": "交易所", "exchange": "HKEX"},
-    {"rank": 85, "market": "HK", "ticker": "1299.HK", "name": "友邦保险", "name_en": "AIA", "theme": "金融/交易所", "industry": "保险", "exchange": "HKEX"},
-    {"rank": 86, "market": "HK", "ticker": "0005.HK", "name": "汇丰控股", "name_en": "HSBC", "theme": "金融/交易所", "industry": "银行", "exchange": "HKEX"},
-    {"rank": 87, "market": "HK", "ticker": "2020.HK", "name": "安踏体育", "name_en": "ANTA Sports", "theme": "消费/品牌", "industry": "运动品牌", "exchange": "HKEX"},
-    {"rank": 88, "market": "HK", "ticker": "2331.HK", "name": "李宁", "name_en": "Li Ning", "theme": "消费/品牌", "industry": "运动品牌", "exchange": "HKEX"},
-    {"rank": 89, "market": "HK", "ticker": "0291.HK", "name": "华润啤酒", "name_en": "China Resources Beer", "theme": "消费/品牌", "industry": "啤酒", "exchange": "HKEX"},
-    {"rank": 90, "market": "HK", "ticker": "6862.HK", "name": "海底捞", "name_en": "Haidilao", "theme": "消费/品牌", "industry": "餐饮连锁", "exchange": "HKEX"},
-    {"rank": 91, "market": "HK", "ticker": "1579.HK", "name": "颐海国际", "name_en": "Yihai International", "theme": "消费/品牌", "industry": "复合调味料", "exchange": "HKEX"},
-    {"rank": 92, "market": "HK", "ticker": "0883.HK", "name": "中国海油", "name_en": "CNOOC", "theme": "能源/公用事业/电信", "industry": "油气", "exchange": "HKEX"},
-    {"rank": 93, "market": "HK", "ticker": "0941.HK", "name": "中国移动", "name_en": "China Mobile", "theme": "能源/公用事业/电信", "industry": "通信运营商", "exchange": "HKEX"},
-    {"rank": 94, "market": "HK", "ticker": "0002.HK", "name": "中电控股", "name_en": "CLP Holdings", "theme": "能源/公用事业/电信", "industry": "公用事业", "exchange": "HKEX"},
-    {"rank": 95, "market": "HK", "ticker": "0836.HK", "name": "华润电力", "name_en": "China Resources Power", "theme": "能源/公用事业/电信", "industry": "电力", "exchange": "HKEX"},
-    {"rank": 96, "market": "HK", "ticker": "1816.HK", "name": "中广核电力", "name_en": "CGN Power", "theme": "能源/公用事业/电信", "industry": "核电", "exchange": "HKEX"},
-    {"rank": 97, "market": "HK", "ticker": "2269.HK", "name": "药明生物", "name_en": "WuXi Biologics", "theme": "医药/先进制造", "industry": "CXO/生物药", "exchange": "HKEX"},
-    {"rank": 98, "market": "HK", "ticker": "6160.HK", "name": "百济神州", "name_en": "BeiGene", "theme": "医药/先进制造", "industry": "创新药", "exchange": "HKEX"},
-    {"rank": 99, "market": "HK", "ticker": "0960.HK", "name": "龙湖集团", "name_en": "Longfor Group", "theme": "医药/先进制造", "industry": "地产现金流", "exchange": "HKEX"},
-    {"rank": 100, "market": "HK", "ticker": "0656.HK", "name": "复星国际", "name_en": "Fosun International", "theme": "医药/先进制造", "industry": "综合产业", "exchange": "HKEX"},
-]
+def load_v2_companies() -> list[dict[str, Any]]:
+    with V2_DATA_PATH.open("r", encoding="utf-8") as file:
+        rows = json.load(file)
+    if not isinstance(rows, list):
+        raise ValueError("v2_companies.json must contain a list")
+    companies = [normalize_v2_company(row) for row in rows]
+    ranks = [item["rank"] for item in companies]
+    expected = list(range(1, len(companies) + 1))
+    if ranks != expected:
+        raise ValueError("v2 company ranks must be contiguous and start at 1")
+    return companies
+
+
+def normalize_v2_company(row: dict[str, Any]) -> dict[str, Any]:
+    market = str(row.get("market") or "").upper()
+    ticker = str(row.get("ticker") or "").strip().upper()
+    if market == "HK" and ticker.endswith(".HK"):
+        code = "".join(ch for ch in ticker[:-3] if ch.isdigit())
+        ticker = f"{code.zfill(4)}.HK"
+    if market == "A":
+        ticker = "".join(ch for ch in ticker if ch.isdigit()).zfill(6)
+    return {
+        "rank": int(row["rank"]),
+        "market": market,
+        "ticker": ticker,
+        "name": str(row.get("name") or ticker).strip(),
+        "name_en": str(row.get("name_en") or "").strip(),
+        "theme": str(row.get("theme") or "待补充").strip(),
+        "industry": str(row.get("industry") or row.get("theme") or "待补充行业").strip(),
+        "exchange": str(row.get("exchange") or "").strip(),
+        "source_group": str(row.get("source_group") or "").strip(),
+        "source_note": str(row.get("source_note") or "").strip(),
+    }
+
+
+V2_COMPANIES: list[dict[str, Any]] = load_v2_companies()
 
 
 QUALITY_PRESETS = {
@@ -207,6 +144,45 @@ def rebuild_v2_ratings(conn) -> dict[str, Any]:
     return v2_summary(rows)
 
 
+def refresh_v2_quotes_and_rebuild(conn, limit: int | None = None) -> dict[str, Any]:
+    from .services import refresh_company_quote, row_to_company
+
+    ensure_v2_schema(conn)
+    started_at = datetime.now(timezone.utc)
+    items = V2_COMPANIES[:limit] if limit else V2_COMPANIES
+    stats: dict[str, Any] = {
+        "started_at": started_at.isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "attempted": 0,
+        "refreshed": 0,
+        "failed": 0,
+        "by_market": {},
+    }
+    for item in items:
+        company_id = upsert_v2_company(conn, item)
+        conn.commit()
+        row = conn.execute("SELECT * FROM companies WHERE id = ?", (company_id,)).fetchone()
+        if not row:
+            stats["failed"] += 1
+            continue
+        snapshot_before = latest_snapshot(conn, company_id).get("created_at")
+        stats["attempted"] += 1
+        stats["by_market"][item["market"]] = stats["by_market"].get(item["market"], 0) + 1
+        try:
+            refresh_company_quote(conn, row_to_company(row, latest_snapshot(conn, company_id)))
+        except Exception:
+            stats["failed"] += 1
+            conn.commit()
+            continue
+        conn.commit()
+        snapshot_after = latest_snapshot(conn, company_id).get("created_at")
+        if snapshot_after and snapshot_after != snapshot_before:
+            stats["refreshed"] += 1
+    stats["ratings_summary"] = rebuild_v2_ratings(conn)
+    conn.commit()
+    stats["completed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return stats
+
+
 def get_v2_ratings(conn, market: str = "AUTO", q: str = "") -> dict[str, Any]:
     ensure_v2_schema(conn)
     count = conn.execute("SELECT COUNT(*) AS count FROM v2_company_ratings").fetchone()["count"]
@@ -245,7 +221,7 @@ def upsert_v2_company(conn, item: dict[str, Any]) -> str:
     ).fetchone()
     company_id = existing["id"] if existing else company_id_for(item)
     aliases = aliases_for(item)
-    tags = [market_label(item["market"]), item["theme"], item["industry"], "2.0重点100"]
+    tags = [market_label(item["market"]), item["theme"], item["industry"], "2.0重点300"]
     conn.execute(
         """
         INSERT INTO companies (id, name, name_en, ticker, market, exchange, industry, sector, description, tags, aliases)
@@ -272,7 +248,7 @@ def upsert_v2_company(conn, item: dict[str, Any]) -> str:
             item["exchange"],
             item["industry"],
             item["theme"],
-            f"{item['name']} 是 AI投委会 2.0 重点100公司第 {item['rank']} 位，归属 {item['theme']}。",
+            f"{item['name']} 是 AI投委会 2.0 重点300公司第 {item['rank']} 位，归属 {item['theme']}。",
             to_json(tags),
             to_json(aliases),
         ),

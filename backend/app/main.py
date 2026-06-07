@@ -6,7 +6,7 @@ import hashlib
 import os
 import secrets
 import shutil
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
@@ -29,7 +29,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from .database import ROOT, from_json, get_conn, init_db, to_json
 from .company_universe import company_universe_summary, list_company_universe, sync_company_universe
 from .scoring.persistence import load_latest_scorecard, persist_scorecard
-from .v2_universe import get_v2_ratings, rebuild_v2_ratings
+from .v2_universe import get_v2_ratings, rebuild_v2_ratings, refresh_v2_quotes_and_rebuild
 from .services import (
     ROUND_NAMES,
     call_openai_compatible,
@@ -63,6 +63,7 @@ load_dotenv(ROOT / ".env")
 app = FastAPI(title="AI投委会 API", version="1.0.0")
 ROUND_JOBS: set[str] = set()
 REPORT_AUTORUN_JOBS: set[str] = set()
+V2_DAILY_REFRESH_META_KEY = "v2_daily_quote_refresh"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv("APP_CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(",") if origin.strip()],
@@ -142,7 +143,73 @@ class V2RatingsQuery(BaseModel):
 @app.on_event("startup")
 async def startup() -> None:
     init_db()
+    ensure_v2_ratings_ready()
     resume_interrupted_autoruns()
+    if v2_daily_refresh_enabled():
+        asyncio.create_task(v2_daily_refresh_loop())
+
+
+def v2_daily_refresh_enabled() -> bool:
+    return os.getenv("AI_COMMITTEE_V2_DAILY_REFRESH", "true").lower() in {"1", "true", "yes", "on"}
+
+
+def ensure_v2_ratings_ready() -> None:
+    try:
+        with get_conn() as conn:
+            rebuild_v2_ratings(conn)
+    except Exception as exc:
+        print(f"v2 ratings startup rebuild failed: {exc}")
+
+
+def v2_refresh_interval_seconds() -> int:
+    try:
+        return max(3600, int(os.getenv("AI_COMMITTEE_V2_REFRESH_INTERVAL_SECONDS", "86400")))
+    except ValueError:
+        return 86400
+
+
+async def v2_daily_refresh_loop() -> None:
+    await asyncio.sleep(float(os.getenv("AI_COMMITTEE_V2_REFRESH_STARTUP_DELAY_SECONDS", "8")))
+    while True:
+        try:
+            await maybe_refresh_v2_quotes()
+        except Exception as exc:
+            print(f"v2 daily refresh failed: {exc}")
+        await asyncio.sleep(float(os.getenv("AI_COMMITTEE_V2_REFRESH_CHECK_SECONDS", "3600")))
+
+
+async def maybe_refresh_v2_quotes() -> None:
+    if not v2_refresh_due():
+        return
+    summary = await asyncio.to_thread(run_v2_quote_refresh)
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO app_metadata (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+            """,
+            (V2_DAILY_REFRESH_META_KEY, to_json(summary)),
+        )
+
+
+def v2_refresh_due() -> bool:
+    with get_conn() as conn:
+        row = conn.execute("SELECT updated_at FROM app_metadata WHERE key = ?", (V2_DAILY_REFRESH_META_KEY,)).fetchone()
+    if not row:
+        return True
+    try:
+        updated_at = datetime.fromisoformat(str(row["updated_at"]).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - updated_at).total_seconds() >= v2_refresh_interval_seconds()
+
+
+def run_v2_quote_refresh() -> dict:
+    with get_conn() as conn:
+        return refresh_v2_quotes_and_rebuild(conn)
 
 
 @app.get("/api/health")

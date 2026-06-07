@@ -11,7 +11,7 @@ export default function App() {
           </span>
           <div>
             <strong>AI投委会 2.0</strong>
-            <small>重点100公司质量 × 估值评级</small>
+            <small>重点300公司质量 × 估值评级</small>
           </div>
         </div>
       </header>

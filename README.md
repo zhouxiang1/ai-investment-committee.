@@ -11,7 +11,7 @@
 - 四个资料采集研究员的结构化资料包
 - 多源真实数据采集：东方财富证券搜索/行情/港股 F10、腾讯实时行情、HKEXnews 港交所公告 PDF、Yahoo Finance 新闻/历史行情、SEC EDGAR、巨潮资讯、东方财富股吧/研报
 - AICS 四分评分体系：数据可信度 DQS、公司质量 CQS、估值吸引力 VAS、投资行动 IAS
-- 2.0 重点 100 公司评级：美股 40 家、A 股 35 家、港股 25 家，支持一键重建和前端榜单查看
+- 2.0 重点 300 公司评级：美股 111 家、A 股 120 家、港股 69 家，每日自动刷新行情并重建四象限图
 - 评分项落库，可展开到模块、指标、扣分/加分理由和 evidence_ids
 - 五轮递进投委会状态机，支持后端托管连续生成；页面关闭后仍会生成最终报告并进入历史记录
 - 中文深度报告、历史报告归档、PDF 导出
@@ -51,6 +51,7 @@ AI_COMMITTEE_LLM_AGENT_MAX_TOKENS=8000
 AI_COMMITTEE_LLM_REPAIR_MAX_TOKENS=6000
 AI_COMMITTEE_LLM_JSON_RETRY_MAX_TOKENS=9000
 AI_COMMITTEE_LIVE_QUOTES=true
+AI_COMMITTEE_V2_DAILY_REFRESH=true
 ```
 
 密钥只由 FastAPI 后端读取，不会进入前端构建产物。五轮会议默认要求真实 LLM 调用；如果未配置 key，后端会拒绝运行轮次，避免生成预设假会议。
@@ -99,9 +100,9 @@ npm audit --audit-level=moderate
 
 PDF 输出在 `output/reports/`，SQLite 数据库在 `data/ai_committee.sqlite`。
 
-## 2.0 重点100评级
+## 2.0 重点300评级
 
-2.0 清单位于 `backend/app/v2_universe.py`，作为美股 40 / A股 35 / 港股 25 的权威输入。后端会把清单补入 `companies` 表，并在 `v2_company_ratings` 表生成可复现评级快照。
+2.0 清单位于 `backend/app/data/v2_companies.json`，作为美股 111 / A股 120 / 港股 69 的权威输入。后端会把清单补入 `companies` 表，并在 `v2_company_ratings` 表生成可复现评级快照。应用启动后会按 `AI_COMMITTEE_V2_REFRESH_INTERVAL_SECONDS` 的间隔自动刷新重点清单行情，默认 86400 秒一次；刷新后会重建评级快照，前端四象限图随 API 数据自动更新。
 
 ```bash
 python3 scripts/rebuild_v2_ratings.py
@@ -116,7 +117,7 @@ GET  /api/v2/ratings
 POST /api/v2/ratings/rebuild
 ```
 
-首页直接展示完整 100 家、市场分布、动作分布、行动分 Top10 和质量/估值四象限图。评级模式为 AICS first：若已有第一版 AICS scorecard，会直接复用；若缺失，可用 `refresh_v2_aics_scorecards.py` 批量采集资料包并按第一版 AICS 评分引擎生成 scorecard；仍缺少实时证据时才保留可测试、可追踪的 baseline 评级。
+首页直接展示完整 300 家、市场分布、动作分布、行动分 Top10 和质量/估值四象限图。评级模式为 AICS first：若已有第一版 AICS scorecard，会直接复用；若缺失，可用 `refresh_v2_aics_scorecards.py` 批量采集资料包并按第一版 AICS 评分引擎生成 scorecard；仍缺少实时证据时才保留可测试、可追踪的 baseline 评级。
 
 ## 线上部署
 
