@@ -1,0 +1,17 @@
+services:
+  ai-committee:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      APP_DB_PATH: /data/ai_committee.sqlite
+      REPORT_OUTPUT_DIR: /data/reports
+      APP_CORS_ORIGINS: ""
+    volumes:
+      - ai_committee_data:/data
+    restart: unless-stopped
+
+volumes:
+  ai_committee_data:
